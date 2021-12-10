@@ -1,0 +1,27 @@
+version: '3.5'
+services:
+  pkmn-server:
+    image: pkmn-server
+    container_name: pkmn-server
+    ports:
+      - "53:53/tcp"
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "8000:8000/tcp"
+      - "9000:9000/tcp"
+      - "9001:9001/tcp"
+      - "9009:9009/tcp"
+      - "9002:9002/tcp"
+      - "9003:9003/tcp"
+      - "9998:9998/tcp"
+      - "27500:27500/tcp"
+      - "27900:27900/tcp"
+      - "27901:27901/tcp"
+      - "28910:28910/tcp"
+      - "29900:29900/tcp"
+      - "29901:29901/tcp"
+      - "29920:29920/tcp"
+      - "53:53/udp"
+      #- "2-65535:2-65535/udp"
+    cap_add:
+      - NET_ADMIN
