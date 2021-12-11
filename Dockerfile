@@ -52,6 +52,7 @@ RUN wget https://dl.winehq.org/wine/wine-mono/7.0.0/wine-mono-7.0.0-x86.tar.xz &
 RUN cd /var/www/ && \
     git clone https://github.com/EnergyCube/CoWFC.git && \
     git clone https://github.com/EnergyCube/dwc_network_server_emulator.git && \
+    rm -rf ./dwc_network_server_emulator/dlc/* && \
     echo "\npokemondpds\t2\tRwBpAHIAYQBmAGYAZQA_" >> ./dwc_network_server_emulator/gamestats.cfg && \
     chmod 777 /var/www/dwc_network_server_emulator/ -R
 
