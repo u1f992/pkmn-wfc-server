@@ -7,7 +7,7 @@ mkdir /etc/apache2/certificates
 cd /
 mkdir nds-constraint/
 cd nds-constraint/
-curl https://github.com/larsenv/NintendoCerts/blob/master/WII_NWC_1_CERT.p12?raw=true -O
+curl https://larsenv.github.io/NintendoCerts/WII_NWC_1_CERT.p12 -O
 openssl pkcs12 -in WII_NWC_1_CERT.p12 -passin pass:alpine -passout pass:alpine -out keys.txt
 sed -n '7,29p' keys.txt > nwc.crt
 sed -n '33,50p' keys.txt > nwc.key
