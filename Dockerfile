@@ -9,11 +9,56 @@
 # 
 # Admin URL: http://$IP/?page=admin&section=Dashboard
 
+ARG VERSION_OPENSSL="openssl-1.1.1m"
+ARG VERSION_HTTPD="httpd-2.4.52"
+
+###
+### Build OpenSSL with SSLv3
+###
 FROM debian:11 AS builder_openssl
+ARG VERSION_OPENSSL
+ARG VERSION_HTTPD
+RUN cd / && \
+    \
+    apt update && apt -y install \
+        curl \
+        build-essential \
+        libapr1-dev \
+        libaprutil1-dev \
+        libpcre3-dev && \
+    \
+    cd / && \
+    curl https://www.openssl.org/source/$VERSION_OPENSSL.tar.gz -O && \
+    tar xvf $VERSION_OPENSSL.tar.gz && rm $VERSION_OPENSSL.tar.gz && cd $VERSION_OPENSSL && \
+    ./config --prefix=/usr/local/openssl --openssldir=/usr/local/openssl shared enable-ssl3 enable-ssl3-method enable-weak-ssl-ciphers && make install_sw && make install_ssldirs && \
+    \
+    cd / && \
+    curl http://archive.apache.org/dist/httpd/$VERSION_HTTPD.tar.bz2 -O && \
+    tar xvf $VERSION_HTTPD.tar.bz2 && rm $VERSION_HTTPD.tar.bz2 && cd $VERSION_HTTPD && \
+    ./configure --enable-ssl --with-ssl=/usr/local/openssl/lib && make
+###
+### Create dummy certificate files
+###
 FROM debian:11 AS builder_dummy-certs
+RUN apt update && apt -y install \
+        curl \
+        openssl &&\
+    \
+    mkdir /dummy-certs && cd /dummy-certs/ && \
+    curl https://larsenv.github.io/NintendoCerts/WII_NWC_1_CERT.p12 -O && \
+    openssl pkcs12 -in WII_NWC_1_CERT.p12 -passin pass:alpine -passout pass:alpine -out keys.txt && \
+    sed -n '7,29p' keys.txt > nwc.crt && \
+    sed -n '33,50p' keys.txt > nwc.key && \
+    openssl genrsa -out server.key 1024 && \
+    echo "US\nWashington\nRedmond\nNintendo of America Inc.\nNintendo Wifi Network\n*.*.*\nca@noa.nintendo.com\n\n\n" | openssl req -new -key server.key -out server.csr && \
+    openssl x509 -req -in server.csr -CA nwc.crt -CAkey nwc.key -CAcreateserial -out server.crt -days 3650 -sha1 -passin pass:alpine && \
+    rm WII_NWC_1_CERT.p12 keys.txt nwc.key nwc.srl server.csr
+
 FROM debian:11 AS builder_pkmn-classic-framework
 
 FROM debian:10
+ARG VERSION_OPENSSL
+ARG VERSION_HTTPD
 
 # Install requirements for CoWFC
 RUN apt update && \
@@ -68,10 +113,16 @@ COPY src/make-certificate.sh /make-certificate.sh
 RUN chmod +x /make-certificate.sh && \
     /make-certificate.sh
 
-# Build OpenSSL with SSLv3
-COPY src/build-openssl.sh /build-openssl.sh
-RUN chmod +x /build-openssl.sh && \
-    /build-openssl.sh
+# # Build OpenSSL with SSLv3
+# COPY src/build-openssl.sh /build-openssl.sh
+# RUN chmod +x /build-openssl.sh && \
+#     /build-openssl.sh
+COPY --from=builder_openssl /$VERSION_OPENSSL /
+COPY --from=builder_openssl /$VERSION_HTTPD /
+RUN cd /$VERSION_OPENSSL && make install_sw && make install_ssldirs && \
+    cd /$VERSION_HTTPD && cp modules/ssl/.libs/mod_ssl.so /usr/lib/apache2/modules/ && \
+    rm -rf /$VERSION_OPENSSL && \
+    rm -rf /$VERSION_HTTPD
 
 # Enable Apache virtualhost config
 COPY src/apache/conntest.nintendowifi.net.conf /etc/apache2/sites-available/conntest.nintendowifi.net.conf
