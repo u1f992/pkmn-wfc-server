@@ -180,8 +180,10 @@ RUN cd / && \
         python3-software-properties \
         software-properties-common \
         vim && \
+    # Install py2-Twisted
     ln -s /usr/bin/python2.7 /usr/bin/python && \
     curl https://bootstrap.pypa.io/pip/2.7/get-pip.py -O && python get-pip.py && pip install twisted && rm get-pip.py && \
+    # Install php7.4
     curl https://packages.sury.org/php/apt.gpg -o /etc/apt/trusted.gpg.d/php.gpg && \
     echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list && \
     apt update && apt -y install \
@@ -194,52 +196,62 @@ RUN cd / && \
     #
     # Generate DNS config
     #
-    echo "address=/nintendowifi.net/$HOST_IP" > /etc/dnsmasq.conf
+    echo "address=/nintendowifi.net/$HOST_IP" > /etc/dnsmasq.conf && \
+    \
     #
-    # Clone CoWFC repositories and slightly edit config
+    # Install custom OpenSSL(mod_ssl)
     #
-RUN cd /var/www/ && \
-    git clone --depth 1 https://github.com/EnergyCube/CoWFC.git && \
-    git clone --depth 1 https://github.com/EnergyCube/dwc_network_server_emulator.git && \
-    sed -i -e "s/db_user = root/db_user = cowfc/g" CoWFC/Web/config.ini && \
-    sed -i -e "s/db_pass = passwordhere/db_pass = cowfc/g" CoWFC/Web/config.ini && \
-    sed -i -e "s/recaptcha_enabled = 1/recaptcha_enabled = 0/g" CoWFC/Web/config.ini && \
-    touch /dwc_network_server_emulator/gpcm.db && \
-    echo "\npokemondpds\t2\tRwBpAHIAYQBmAGYAZQA_" >> dwc_network_server_emulator/gamestats.cfg && \
-    #
-    # CoWFC admin page setting
-    #
-    service mariadb start && \
-    echo "CREATE DATABASE cowfc; CREATE USER 'cowfc'@'localhost' IDENTIFIED BY 'cowfc'; GRANT ALL PRIVILEGES ON *.* TO 'cowfc'@'localhost'; FLUSH PRIVILEGES;" | mysql --user=root && \
-    mysql --user=root --password= --database=cowfc < /var/www/CoWFC/SQL/cowfc.sql && \
-    echo "INSERT INTO users (Username, Password, Rank) VALUES ('$ADMIN_USERNAME','`/var/www/CoWFC/SQL/bcrypt-hash "$ADMIN_PASSWORD"`','1');" | mysql --user=root --database=cowfc && \
-    mv /var/www/html/config.ini /var/www/config.ini && \
-    #
-    # Install Website
-    #
-    rm -rf /var/www/html/* && \
-    mv /var/www/CoWFC/Web/* /var/www/html && \
-    #
-    # Finish CoWFC installation
-    #
-    touch /etc/.dwc_installed
-
-RUN apt update && apt -y install \
+    apt update && apt -y install \
         build-essential && \
     cd /$VERSION_OPENSSL && make install_sw && make install_ssldirs && \
     cd /$VERSION_HTTPD && cp modules/ssl/.libs/mod_ssl.so /usr/lib/apache2/modules/ && \
-    rm -rf /$VERSION_OPENSSL && \
-    rm -rf /$VERSION_HTTPD && \
+    rm -rf /$VERSION_OPENSSL && rm -rf /$VERSION_HTTPD && \
+    # Switch openssl libraries
     # see build section
     echo "/usr/local/openssl/lib" > /etc/ld.so.conf.d/usr.local.openssl.lib.conf && ldconfig && \
-    # remove build dependencies
-    apt -y purge build-essential
-
-RUN mkdir /etc/apache2/certs && \
+    # Remove build dependencies
+    apt -y purge build-essential && \
+    \
+    #
+    # Install dummy certificates
+    #
+    mkdir /etc/apache2/certs && \
     cp /dummy-certs/server.crt /etc/apache2/certs/ && \
     cp /dummy-certs/server.key /etc/apache2/certs/ && \
     cp /dummy-certs/nwc.crt /etc/apache2/certs/ && \
-    rm -rf /dummy-certs
+    rm -rf /dummy-certs && \
+    \
+    #
+    # Clone CoWFC repositories and install
+    #
+    cd /var/www/ && \
+    git clone --depth 1 https://github.com/EnergyCube/CoWFC.git && \
+    git clone --depth 1 https://github.com/EnergyCube/dwc_network_server_emulator.git && \
+    # slightly edit config
+    sed -i -e "s/db_user = root/db_user = cowfc/g" CoWFC/Web/config.ini && \
+    sed -i -e "s/db_pass = passwordhere/db_pass = cowfc/g" CoWFC/Web/config.ini && \
+    sed -i -e "s/recaptcha_enabled = 1/recaptcha_enabled = 0/g" CoWFC/Web/config.ini && \
+    touch dwc_network_server_emulator/gpcm.db && \
+    echo "\npokemondpds\t2\tRwBpAHIAYQBmAGYAZQA_" >> dwc_network_server_emulator/gamestats.cfg && \
+    # CoWFC admin page setting
+    service mariadb start && \
+    echo "CREATE DATABASE cowfc; CREATE USER 'cowfc'@'localhost' IDENTIFIED BY 'cowfc'; GRANT ALL PRIVILEGES ON *.* TO 'cowfc'@'localhost'; FLUSH PRIVILEGES;" | mysql --user=root && \
+    mysql --user=root --password= --database=cowfc < CoWFC/SQL/cowfc.sql && \
+    echo "INSERT INTO users (Username, Password, Rank) VALUES ('$ADMIN_USERNAME','`/var/www/CoWFC/SQL/bcrypt-hash "$ADMIN_PASSWORD"`','1');" | mysql --user=root --database=cowfc && \
+    # Install Websites
+    rm -rf html/* && \
+    mv CoWFC/Web/* html/ && \
+    mv html/config.ini ./ && \
+    # Finish CoWFC installation
+    touch /etc/.dwc_installed && \
+    \
+    #
+    # Install pkmn-classic-framework
+    #
+    mkdir gamestats2.gs.nintendowifi.net && mv /pkmn-classic-framework/gts/publish/_PublishedWebsites/gts/* gamestats2.gs.nintendowifi.net/ && \
+    service mariadb start && \
+    echo "CREATE DATABASE gts; CREATE USER 'gts'@'localhost' IDENTIFIED BY 'gts'; GRANT ALL ON *.* TO 'gts'@'localhost';" | mysql --user=root && \
+    mysql --user=root --password= --database=gts < /gts_dump.sql
 
 # Enable Apache virtualhost config
 COPY src/apache/conntest.nintendowifi.net.conf /etc/apache2/sites-available/conntest.nintendowifi.net.conf
@@ -252,17 +264,11 @@ COPY src/apache/naswii.nintendowifi.net.conf /etc/apache2/sites-available/naswii
 COPY src/apache/sake.gs.nintendowifi.net.conf /etc/apache2/sites-available/sake.gs.nintendowifi.net.conf
 COPY src/apache/ssl.conf /etc/apache2/mods-available/ssl.conf
 COPY src/apache/ssl.load /etc/apache2/mods-available/ssl.load
-RUN mkdir /var/www/gamestats2.gs.nintendowifi.net
 RUN echo "ServerName localhost\nHttpProtocolOptions Unsafe LenientMethods Allow0.9" >> /etc/apache2/apache2.conf && \
     a2dismod mpm_event && \
     a2enmod proxy proxy_http "php7.4" ssl && \
     a2ensite *.nintendowifi.net.conf
 
-# Install pkmn-classic-framework
-RUN mv /pkmn-classic-framework/gts/publish/_PublishedWebsites/gts/* /var/www/gamestats2.gs.nintendowifi.net/ && \
-    service mariadb start && \
-    echo "CREATE DATABASE gts; CREATE USER 'gts'@'localhost' IDENTIFIED BY 'gts'; GRANT ALL ON *.* TO 'gts'@'localhost';" | mysql --user=root && \
-    mysql --user=root --password= --database=gts < /gts_dump.sql
     #
     # Create entry point script
     #
