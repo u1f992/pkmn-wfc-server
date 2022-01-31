@@ -154,6 +154,11 @@ ARG ADMIN_USERNAME
 ARG ADMIN_PASSWORD
 ARG VERSION_OPENSSL
 ARG VERSION_HTTPD
+COPY --from=builder_openssl /$VERSION_OPENSSL /$VERSION_OPENSSL
+COPY --from=builder_openssl /$VERSION_HTTPD /$VERSION_HTTPD
+COPY --from=builder_dummy-certs /dummy-certs /dummy-certs
+COPY --from=builder_pkmn-classic-framework /pkmn-classic-framework /pkmn-classic-framework
+COPY --from=builder_pkmn-classic-framework /gts_dump.sql /gts_dump.sql
 RUN cd / && \
     \
     #
@@ -190,22 +195,35 @@ RUN cd / && \
     # Generate DNS config
     #
     echo "address=/nintendowifi.net/$HOST_IP" > /etc/dnsmasq.conf
-
-# Clone repositories
+    #
+    # Clone CoWFC repositories and slightly edit config
+    #
 RUN cd /var/www/ && \
     git clone --depth 1 https://github.com/EnergyCube/CoWFC.git && \
     git clone --depth 1 https://github.com/EnergyCube/dwc_network_server_emulator.git && \
-    echo "\npokemondpds\t2\tRwBpAHIAYQBmAGYAZQA_" >> dwc_network_server_emulator/gamestats.cfg
+    sed -i -e "s/db_user = root/db_user = cowfc/g" CoWFC/Web/config.ini && \
+    sed -i -e "s/db_pass = passwordhere/db_pass = cowfc/g" CoWFC/Web/config.ini && \
+    sed -i -e "s/recaptcha_enabled = 1/recaptcha_enabled = 0/g" CoWFC/Web/config.ini && \
+    touch /dwc_network_server_emulator/gpcm.db && \
+    echo "\npokemondpds\t2\tRwBpAHIAYQBmAGYAZQA_" >> dwc_network_server_emulator/gamestats.cfg && \
+    #
+    # CoWFC admin page setting
+    #
+    service mariadb start && \
+    echo "CREATE DATABASE cowfc; CREATE USER 'cowfc'@'localhost' IDENTIFIED BY 'cowfc'; GRANT ALL PRIVILEGES ON *.* TO 'cowfc'@'localhost'; FLUSH PRIVILEGES;" | mysql --user=root && \
+    mysql --user=root --password= --database=cowfc < /var/www/CoWFC/SQL/cowfc.sql && \
+    echo "INSERT INTO users (Username, Password, Rank) VALUES ('$ADMIN_USERNAME','`/var/www/CoWFC/SQL/bcrypt-hash "$ADMIN_PASSWORD"`','1');" | mysql --user=root --database=cowfc && \
+    mv /var/www/html/config.ini /var/www/config.ini && \
+    #
+    # Install Website
+    #
+    rm -rf /var/www/html/* && \
+    mv /var/www/CoWFC/Web/* /var/www/html && \
+    #
+    # Finish CoWFC installation
+    #
+    touch /etc/.dwc_installed
 
-COPY --from=builder_dummy-certs /dummy-certs /dummy-certs
-RUN mkdir /etc/apache2/certs && \
-    cp /dummy-certs/server.crt /etc/apache2/certs/ && \
-    cp /dummy-certs/server.key /etc/apache2/certs/ && \
-    cp /dummy-certs/nwc.crt /etc/apache2/certs/ && \
-    rm -rf /dummy-certs
-
-COPY --from=builder_openssl /$VERSION_OPENSSL /$VERSION_OPENSSL
-COPY --from=builder_openssl /$VERSION_HTTPD /$VERSION_HTTPD
 RUN apt update && apt -y install \
         build-essential && \
     cd /$VERSION_OPENSSL && make install_sw && make install_ssldirs && \
@@ -213,7 +231,15 @@ RUN apt update && apt -y install \
     rm -rf /$VERSION_OPENSSL && \
     rm -rf /$VERSION_HTTPD && \
     # see build section
-    echo "/usr/local/openssl/lib" > /etc/ld.so.conf.d/usr.local.openssl.lib.conf && ldconfig
+    echo "/usr/local/openssl/lib" > /etc/ld.so.conf.d/usr.local.openssl.lib.conf && ldconfig && \
+    # remove build dependencies
+    apt -y purge build-essential
+
+RUN mkdir /etc/apache2/certs && \
+    cp /dummy-certs/server.crt /etc/apache2/certs/ && \
+    cp /dummy-certs/server.key /etc/apache2/certs/ && \
+    cp /dummy-certs/nwc.crt /etc/apache2/certs/ && \
+    rm -rf /dummy-certs
 
 # Enable Apache virtualhost config
 COPY src/apache/conntest.nintendowifi.net.conf /etc/apache2/sites-available/conntest.nintendowifi.net.conf
@@ -232,34 +258,14 @@ RUN echo "ServerName localhost\nHttpProtocolOptions Unsafe LenientMethods Allow0
     a2enmod proxy proxy_http "php7.4" ssl && \
     a2ensite *.nintendowifi.net.conf
 
-# Install Website
-RUN rm -rf /var/www/html/* && \
-    mv /var/www/CoWFC/Web/* /var/www/html && \
-    touch /var/www/dwc_network_server_emulator/gpcm.db && \
-    sed -i -e "s/recaptcha_enabled = 1/recaptcha_enabled = 0/g" /var/www/html/config.ini
-
-ARG ADMIN_USERNAME
-ARG ADMIN_PASSWORD
-RUN service mariadb start && \
-    #
-    # CoWFC admin page setting
-    #
-    echo "CREATE DATABASE cowfc; CREATE USER 'cowfc'@'localhost' IDENTIFIED BY 'cowfc'; GRANT ALL PRIVILEGES ON *.* TO 'cowfc'@'localhost'; FLUSH PRIVILEGES;" | mysql --user=root && \
-    mysql --user=root --password= --database=cowfc < /var/www/CoWFC/SQL/cowfc.sql && \
-    echo "INSERT INTO users (Username, Password, Rank) VALUES ('$ADMIN_USERNAME','`/var/www/CoWFC/SQL/bcrypt-hash "$ADMIN_PASSWORD"`','1');" | mysql --user=root --database=cowfc && \
-    sed -i -e "s/db_user = root/db_user = cowfc/g" /var/www/html/config.ini && \
-    sed -i -e "s/db_pass = passwordhere/db_pass = cowfc/g" /var/www/html/config.ini && \
-    mv /var/www/html/config.ini /var/www/config.ini && \
-    touch /etc/.dwc_installed
-
 # Install pkmn-classic-framework
-COPY --from=builder_pkmn-classic-framework /pkmn-classic-framework /pkmn-classic-framework
-COPY --from=builder_pkmn-classic-framework /gts_dump.sql /gts_dump.sql
 RUN mv /pkmn-classic-framework/gts/publish/_PublishedWebsites/gts/* /var/www/gamestats2.gs.nintendowifi.net/ && \
     service mariadb start && \
     echo "CREATE DATABASE gts; CREATE USER 'gts'@'localhost' IDENTIFIED BY 'gts'; GRANT ALL ON *.* TO 'gts'@'localhost';" | mysql --user=root && \
     mysql --user=root --password= --database=gts < /gts_dump.sql
-
+    #
+    # Create entry point script
+    #
 RUN echo "#!/bin/sh -eu\n\nservice dnsmasq start\nservice mariadb start\napachectl start\ncd /var/www/dwc_network_server_emulator && python master_server.py" > /entrypoint.sh && chmod +x /entrypoint.sh
 
 CMD ["/bin/sh"]
