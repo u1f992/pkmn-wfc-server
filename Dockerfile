@@ -157,23 +157,6 @@ RUN apt update && \
     apt install -y gnupg gnupg2 gnupg1 libapache2-mod-mono mono-complete mono-xsp && \
     wget http://veekun.com/static/pokedex/downloads/veekun-pokedex.sqlite.gz
 
-# Install Wine(https://wiki.winehq.org/Debian)
-RUN dpkg --add-architecture i386 && \
-    # wget -nc https://download.opensuse.org/repositories/Emulators:/Wine:/Debian/Debian_10/Release.key && \
-    # apt-key add Release.key && \
-    # echo "deb https://download.opensuse.org/repositories/Emulators:/Wine:/Debian/Debian_10 ./" >> /etc/apt/sources.list && \
-    wget -nc https://dl.winehq.org/wine-builds/winehq.key && \
-    apt-key add winehq.key && \
-    echo "deb https://dl.winehq.org/wine-builds/debian/ buster main" >> /etc/apt/sources.list && \
-    apt update && \
-    apt -y install --install-recommends winehq-devel
-
-# Install Wine Mono(https://wiki.winehq.org/Mono)
-RUN wget https://dl.winehq.org/wine/wine-mono/7.0.0/wine-mono-7.0.0-x86.tar.xz && \
-    tar Jxfv wine-mono-7.0.0-x86.tar.xz && \
-    mkdir -p /usr/share/wine/mono && \
-    cp -r wine-mono-7.0.0/ /usr/share/wine/mono/
-
 # Clone repositories
 RUN cd /var/www/ && \
     git clone https://github.com/EnergyCube/CoWFC.git && \
