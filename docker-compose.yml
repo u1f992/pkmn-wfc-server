@@ -1,7 +1,7 @@
 version: '3.5'
 services:
-  pkmn-server:
-    container_name: pkmn-server
+  pkmn-wfc-server:
+    container_name: pkmn-wfc-server
     build:
       dockerfile: ./Dockerfile
       args:
@@ -27,6 +27,5 @@ services:
       - "29901:29901/tcp"
       - "29920:29920/tcp"
       - "53:53/udp"
-      #- "2-65535:2-65535/udp"
     cap_add:
       - NET_ADMIN

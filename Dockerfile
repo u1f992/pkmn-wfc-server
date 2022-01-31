@@ -1,13 +1,14 @@
-# Dockerfile migration of https://github.com/EnergyCube/cowfc_installer
-# 
-# `docker build -t pkmn-server .`
-# `docker compose up`
-# 
-# Open ports listed below
-# TCP: 53,80,443,8000,9000,9001,9009,9002,9003,9998,27500,27900,27901,28910,29900,29901,29920
-# UDP: 2-65535
-# 
-# Admin URL: http://$IP/?page=admin&section=Dashboard
+###
+### Dockerfile migration of https://github.com/EnergyCube/cowfc_installer
+### 
+### `docker-compose up`
+### 
+### Open ports listed below
+### TCP: 53, 80, 443, 8000, 9000, 9001, 9009, 9002, 9003, 9998, 27500, 27900, 27901, 28910, 29900, 29901, 29920
+### UDP: 53
+### 
+### Admin URL: http://$IP/?page=admin&section=Dashboard
+###
 
 ARG HOST_IP
 ARG ADMIN_USERNAME
@@ -146,7 +147,7 @@ RUN cd / && \
     cd / && mysqldump --user=root gts > gts_dump.sql
 
 ###
-### Main
+### pkmn-wfc-server
 ###
 FROM debian:11
 ARG HOST_IP
@@ -294,7 +295,9 @@ RUN cd / && \
     apt autoremove -y
 
 RUN cd /var/www/dwc_network_server_emulator/ && \
+    #
     # Disable dlc server
+    #
     # mv nas_server.py nas_server.py.bkp && \
     # sed '272,367d' nas_server.py.bkp > nas_server.py && \
     rm -rf dlc
