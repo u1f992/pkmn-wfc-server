@@ -195,8 +195,7 @@ RUN cd / && \
 RUN cd /var/www/ && \
     git clone --depth 1 https://github.com/EnergyCube/CoWFC.git && \
     git clone --depth 1 https://github.com/EnergyCube/dwc_network_server_emulator.git && \
-    echo "\npokemondpds\t2\tRwBpAHIAYQBmAGYAZQA_" >> dwc_network_server_emulator/gamestats.cfg && \
-    chmod 777 /var/www/dwc_network_server_emulator/ -R
+    echo "\npokemondpds\t2\tRwBpAHIAYQBmAGYAZQA_" >> dwc_network_server_emulator/gamestats.cfg
 
 COPY --from=builder_dummy-certs /dummy-certs /dummy-certs
 RUN mkdir /etc/apache2/certs && \
@@ -236,9 +235,7 @@ RUN echo "ServerName localhost\nHttpProtocolOptions Unsafe LenientMethods Allow0
 # Install Website
 RUN rm -rf /var/www/html/* && \
     mv /var/www/CoWFC/Web/* /var/www/html && \
-    chmod 777 /var/www/html/bans.log && \
     touch /var/www/dwc_network_server_emulator/gpcm.db && \
-    chmod 777 /var/www/dwc_network_server_emulator/ -R && \
     sed -i -e "s/recaptcha_enabled = 1/recaptcha_enabled = 0/g" /var/www/html/config.ini
 
 ARG ADMIN_USERNAME
