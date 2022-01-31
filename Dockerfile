@@ -193,8 +193,8 @@ RUN cd / && \
 
 # Clone repositories
 RUN cd /var/www/ && \
-    git clone https://github.com/EnergyCube/CoWFC.git && \
-    git clone https://github.com/EnergyCube/dwc_network_server_emulator.git && \
+    git clone --depth 1 https://github.com/EnergyCube/CoWFC.git && \
+    git clone --depth 1 https://github.com/EnergyCube/dwc_network_server_emulator.git && \
     echo "\npokemondpds\t2\tRwBpAHIAYQBmAGYAZQA_" >> dwc_network_server_emulator/gamestats.cfg && \
     chmod 777 /var/www/dwc_network_server_emulator/ -R
 
