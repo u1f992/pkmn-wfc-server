@@ -209,7 +209,7 @@ RUN cd / && \
     # see build section
     echo "/usr/local/openssl/lib" > /etc/ld.so.conf.d/usr.local.openssl.lib.conf && ldconfig && \
     # Remove build dependencies
-    apt -y purge build-essential && \
+    apt purge -y build-essential && \
     \
     #
     # Install dummy certificates
@@ -249,7 +249,9 @@ RUN cd / && \
     # Install pkmn-classic-framework
     #
     mkdir gamestats2.gs.nintendowifi.net && mv /pkmn-classic-framework/gts/publish/_PublishedWebsites/gts/* gamestats2.gs.nintendowifi.net/ && \
-    service mariadb start && \
+    # Disable capital-case sensitivity
+    echo "[mysqld]\nlower_case_table_names=1" >> /etc/mysql/my.cnf && \
+    service mariadb restart && \
     echo "CREATE DATABASE gts; CREATE USER 'gts'@'localhost' IDENTIFIED BY 'gts'; GRANT ALL ON *.* TO 'gts'@'localhost';" | mysql --user=root && \
     mysql --user=root --password= --database=gts < /gts_dump.sql && \
     \
@@ -276,6 +278,19 @@ RUN cd / && \
     #
     # Create entry point script
     #
-    echo "#!/bin/sh -eu\n\nservice dnsmasq start\nservice mariadb start\napachectl start\ncd /var/www/dwc_network_server_emulator && python master_server.py" > /entrypoint.sh && chmod +x /entrypoint.sh
+    echo "#!/bin/sh -eu\n\nservice dnsmasq start\nservice mariadb start\napachectl start\ncd /var/www/dwc_network_server_emulator && python master_server.py" > /entrypoint.sh && chmod +x /entrypoint.sh && \
+    \
+    #
+    # Remove packages
+    #
+    apt purge -y \
+        apt-transport-https \
+        git \
+        lsb-release \
+        net-tools \
+        python3-software-properties \
+        software-properties-common \
+        vim && \
+    apt autoremove -y
 
 CMD ["/bin/sh", "/entrypoint.sh"]
