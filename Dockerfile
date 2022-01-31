@@ -61,6 +61,9 @@ RUN mkdir /dummy-certs && cd /dummy-certs/ && \
     openssl x509 -req -in server.csr -CA nwc.crt -CAkey nwc.key -CAcreateserial -out server.crt -days 3650 -sha1 -passin pass:alpine && \
     rm WII_NWC_1_CERT.p12 keys.txt nwc.key nwc.srl server.csr
 
+###
+### Build pkmn-classic-framework and dump the gts database
+###
 FROM debian:11 AS builder_pkmn-classic-framework
 ENV WINE_MONO_VERSION="7.0.0"
 RUN cd / && \
@@ -182,7 +185,7 @@ RUN cd /var/www/ && \
 COPY src/dnsmasq/dnsmasq.conf /etc/dnsmasq.conf
 
 # Make dummy certificates
-COPY --from=builder_dummy-certs /dummy-certs /
+COPY --from=builder_dummy-certs /dummy-certs /dummy-certs
 RUN mkdir /etc/apache2/certs && \
     cp /dummy-certs/server.crt /etc/apache2/certs/ && \
     cp /dummy-certs/server.key /etc/apache2/certs/ && \
@@ -190,14 +193,16 @@ RUN mkdir /etc/apache2/certs && \
     rm -rf /dummy-certs
 
 # Build OpenSSL with SSLv3
-COPY --from=builder_openssl /$VERSION_OPENSSL /
-COPY --from=builder_openssl /$VERSION_HTTPD /
+COPY --from=builder_openssl /$VERSION_OPENSSL /$VERSION_OPENSSL
+COPY --from=builder_openssl /$VERSION_HTTPD /$VERSION_HTTPD
 RUN apt update && apt -y install \
         build-essential && \
     cd /$VERSION_OPENSSL && make install_sw && make install_ssldirs && \
     cd /$VERSION_HTTPD && cp modules/ssl/.libs/mod_ssl.so /usr/lib/apache2/modules/ && \
     rm -rf /$VERSION_OPENSSL && \
-    rm -rf /$VERSION_HTTPD
+    rm -rf /$VERSION_HTTPD && \
+    # see build section
+    echo "/usr/local/openssl/lib" > /etc/ld.so.conf.d/usr.local.openssl.lib.conf && ldconfig
 
 # Enable Apache virtualhost config
 COPY src/apache/conntest.nintendowifi.net.conf /etc/apache2/sites-available/conntest.nintendowifi.net.conf
@@ -214,15 +219,13 @@ RUN mkdir /var/www/gamestats2.gs.nintendowifi.net
 RUN echo "ServerName localhost\nHttpProtocolOptions Unsafe LenientMethods Allow0.9" >> /etc/apache2/apache2.conf && \
     a2dismod mpm_event && \
     a2enmod proxy proxy_http "php7.4" ssl && \
-    a2ensite *.nintendowifi.net.conf && \
-    apachectl graceful
+    a2ensite *.nintendowifi.net.conf
 
 # Install Website
 RUN rm -rf /var/www/html && \
     mkdir /var/www/html && \
     cp /var/www/CoWFC/Web/* /var/www/html -R && \
     chmod 777 /var/www/html/bans.log && \
-    service apache2 restart && \
     touch /var/www/dwc_network_server_emulator/gpcm.db && \
     chmod 777 /var/www/dwc_network_server_emulator/ -R && \
     sed -i -e "s/recaptcha_enabled = 1/recaptcha_enabled = 0/g" /var/www/html/config.ini
@@ -245,8 +248,8 @@ RUN mv /var/www/html/config.ini /var/www/config.ini && \
     touch /etc/.dwc_installed
 
 # Install pkmn-classic-framework
-COPY --from=builder_pkmn-classic-framework /pkmn-classic-framework /
-COPY --from=builder_pkmn-classic-framework /gts_dump.sql /
+COPY --from=builder_pkmn-classic-framework /pkmn-classic-framework /pkmn-classic-framework
+COPY --from=builder_pkmn-classic-framework /gts_dump.sql /gts_dump.sql
 RUN mv /pkmn-classic-framework/gts/publish/_PublishedWebsites/gts/* /var/www/gamestats2.gs.nintendowifi.net/ && \
     service mariadb start && \
     echo "CREATE DATABASE gts; CREATE USER 'gts'@'localhost' IDENTIFIED BY 'gts'; GRANT ALL ON *.* TO 'gts'@'localhost';" | mysql --user=root && \
