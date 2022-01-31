@@ -1,4 +1,4 @@
-# Dockerfile of https://github.com/EnergyCube/cowfc_installer
+# Dockerfile migration of https://github.com/EnergyCube/cowfc_installer
 # 
 # `docker build -t pkmn-server .`
 # `docker compose up`
@@ -9,6 +9,7 @@
 # 
 # Admin URL: http://$IP/?page=admin&section=Dashboard
 
+ARG HOST_IP="192.168.43.121"
 ARG ADMIN_USERNAME="admin"
 ARG ADMIN_PASSWORD="opensesame"
 
@@ -17,6 +18,7 @@ ARG VERSION_HTTPD="httpd-2.4.52"
 
 ###
 ### Build OpenSSL with SSLv3
+### info: https://qiita.com/keys/items/61eb02bd7396cda0d548
 ###
 FROM debian:11 AS builder_openssl
 ARG VERSION_OPENSSL
@@ -44,6 +46,7 @@ RUN cd / && \
 
 ###
 ### Create dummy certificate files
+### info: https://flewkey.com/blog/2020-07-12-nds-constraint.html
 ###
 FROM debian:11 AS builder_dummy-certs
 RUN mkdir /dummy-certs && cd /dummy-certs/ && \
@@ -142,12 +145,21 @@ RUN cd / && \
     cd pkmn-classic-framework/VeekunImport/bin/Debug/ && wine VeekunImport.exe && \
     cd / && mysqldump --user=root gts > gts_dump.sql
 
+###
+### Main
+###
 FROM debian:11
+ARG HOST_IP
+ARG ADMIN_USERNAME
+ARG ADMIN_PASSWORD
 ARG VERSION_OPENSSL
 ARG VERSION_HTTPD
-
-# Install requirements for CoWFC
-RUN apt update && apt install -y \
+RUN cd / && \
+    \
+    #
+    # Install requirements
+    #
+    apt update && apt install -y \
         apache2 \
         apt-transport-https \
         ca-certificates \
@@ -172,7 +184,12 @@ RUN apt update && apt install -y \
         php7.4 \
         php7.4-mysql \
         php7.4-sqlite3 \
-        sqlite3
+        sqlite3 && \
+    \
+    #
+    # Generate DNS config
+    #
+    echo "address=/nintendowifi.net/$HOST_IP" > /etc/dnsmasq.conf
 
 # Clone repositories
 RUN cd /var/www/ && \
@@ -181,10 +198,6 @@ RUN cd /var/www/ && \
     echo "\npokemondpds\t2\tRwBpAHIAYQBmAGYAZQA_" >> dwc_network_server_emulator/gamestats.cfg && \
     chmod 777 /var/www/dwc_network_server_emulator/ -R
 
-# Copy DNS config
-COPY src/dnsmasq/dnsmasq.conf /etc/dnsmasq.conf
-
-# Make dummy certificates
 COPY --from=builder_dummy-certs /dummy-certs /dummy-certs
 RUN mkdir /etc/apache2/certs && \
     cp /dummy-certs/server.crt /etc/apache2/certs/ && \
@@ -192,7 +205,6 @@ RUN mkdir /etc/apache2/certs && \
     cp /dummy-certs/nwc.crt /etc/apache2/certs/ && \
     rm -rf /dummy-certs
 
-# Build OpenSSL with SSLv3
 COPY --from=builder_openssl /$VERSION_OPENSSL /$VERSION_OPENSSL
 COPY --from=builder_openssl /$VERSION_HTTPD /$VERSION_HTTPD
 RUN apt update && apt -y install \
@@ -222,9 +234,8 @@ RUN echo "ServerName localhost\nHttpProtocolOptions Unsafe LenientMethods Allow0
     a2ensite *.nintendowifi.net.conf
 
 # Install Website
-RUN rm -rf /var/www/html && \
-    mkdir /var/www/html && \
-    cp /var/www/CoWFC/Web/* /var/www/html -R && \
+RUN rm -rf /var/www/html/* && \
+    mv /var/www/CoWFC/Web/* /var/www/html && \
     chmod 777 /var/www/html/bans.log && \
     touch /var/www/dwc_network_server_emulator/gpcm.db && \
     chmod 777 /var/www/dwc_network_server_emulator/ -R && \
@@ -240,11 +251,8 @@ RUN service mariadb start && \
     mysql --user=root --password= --database=cowfc < /var/www/CoWFC/SQL/cowfc.sql && \
     echo "INSERT INTO users (Username, Password, Rank) VALUES ('$ADMIN_USERNAME','`/var/www/CoWFC/SQL/bcrypt-hash "$ADMIN_PASSWORD"`','1');" | mysql --user=root --database=cowfc && \
     sed -i -e "s/db_user = root/db_user = cowfc/g" /var/www/html/config.ini && \
-    sed -i -e "s/db_pass = passwordhere/db_pass = cowfc/g" /var/www/html/config.ini
-
-# Finish CoWFC installation
-COPY src/start-altwfc.sh /start-altwfc.sh
-RUN mv /var/www/html/config.ini /var/www/config.ini && \
+    sed -i -e "s/db_pass = passwordhere/db_pass = cowfc/g" /var/www/html/config.ini && \
+    mv /var/www/html/config.ini /var/www/config.ini && \
     touch /etc/.dwc_installed
 
 # Install pkmn-classic-framework
@@ -254,6 +262,8 @@ RUN mv /pkmn-classic-framework/gts/publish/_PublishedWebsites/gts/* /var/www/gam
     service mariadb start && \
     echo "CREATE DATABASE gts; CREATE USER 'gts'@'localhost' IDENTIFIED BY 'gts'; GRANT ALL ON *.* TO 'gts'@'localhost';" | mysql --user=root && \
     mysql --user=root --password= --database=gts < /gts_dump.sql
+
+RUN echo "#!/bin/sh -eu\n\nservice dnsmasq start\nservice mariadb start\napachectl start\ncd /var/www/dwc_network_server_emulator && python master_server.py" > /entrypoint.sh && chmod +x /entrypoint.sh
 
 CMD ["/bin/sh"]
 # CMD apachectl start && \
