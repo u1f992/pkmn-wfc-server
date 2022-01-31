@@ -9,6 +9,10 @@
 # 
 # Admin URL: http://$IP/?page=admin&section=Dashboard
 
+FROM debian:11 AS builder_openssl
+FROM debian:11 AS builder_dummy-certs
+FROM debian:11 AS builder_pkmn-classic-framework
+
 FROM debian:10
 
 # Install requirements for CoWFC
