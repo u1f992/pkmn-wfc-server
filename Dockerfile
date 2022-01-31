@@ -9,9 +9,9 @@
 # 
 # Admin URL: http://$IP/?page=admin&section=Dashboard
 
-ARG HOST_IP="192.168.43.121"
-ARG ADMIN_USERNAME="admin"
-ARG ADMIN_PASSWORD="opensesame"
+ARG HOST_IP
+ARG ADMIN_USERNAME
+ARG ADMIN_PASSWORD
 
 ARG VERSION_OPENSSL="openssl-1.1.1m"
 ARG VERSION_HTTPD="httpd-2.4.52"
@@ -173,7 +173,6 @@ RUN cd / && \
         git \
         libapache2-mod-mono \
         lsb-release \
-        mono-complete \
         mono-xsp \
         net-tools \
         python2.7 \
@@ -267,8 +266,8 @@ RUN cd / && \
     sed -i -e 's/ServerAlias "nas.nintendowifi.net"//g' sites-available/nas-naswii-dls1-conntest.nintendowifi.net.conf && \
     sed -i -e 's/ServerAlias "nas.nintendowifi.net, nas.nintendowifi.net"//g' sites-available/nas-naswii-dls1-conntest.nintendowifi.net.conf && \
     # generate custom virtualhost conf
-    echo -e "<VirtualHost *:80>\n        ServerAdmin webmaster@localhost\n        ServerName gamestats2.gs.nintendowifi.net\n        ServerAlias \"gamestats2.gs.nintendowifi.net, gamestats2.gs.nintendowifi.net\"\n        DocumentRoot /var/www/gamestats2.gs.nintendowifi.net\n        MonoAutoApplication disabled\n        MonoServerPath \"/usr/bin/mod-mono-server4\"\n        MonoApplications default \"/:/var/www/gamestats2.gs.nintendowifi.net\"\n        <Location />\n                SetHandler mono\n                MonoSetServerAlias default\n        </Location>\n</VirtualHost>" > sites-available/gamestats2.gs.nintendowifi.net.conf && \
-    echo -e "<VirtualHost *:443>\n        ServerAdmin webmaster@localhost\n        ServerName nas.nintendowifi.net\n        ServerAlias \"nas.nintendowifi.net\"\n        ServerAlias \"nas.nintendowifi.net, nas.nintendowifi.net\"\n        ProxyPreserveHost On\n        ProxyPass / http://127.0.0.1:9000/\n        ProxyPassReverse / http://127.0.0.1:9000/\n        SSLEngine on\n        SSLCertificateFile /etc/apache2/certs/server.crt\n        SSLCertificateKeyFile /etc/apache2/certs/server.key\n        SSLCertificateChainFile /etc/apache2/certs/nwc.crt\n</VirtualHost>" > sites-available/nas.nintendowifi.net.conf && \
+    echo "<VirtualHost *:80>\n        ServerAdmin webmaster@localhost\n        ServerName gamestats2.gs.nintendowifi.net\n        ServerAlias \"gamestats2.gs.nintendowifi.net, gamestats2.gs.nintendowifi.net\"\n        DocumentRoot /var/www/gamestats2.gs.nintendowifi.net\n        MonoAutoApplication disabled\n        MonoServerPath \"/usr/bin/mod-mono-server4\"\n        MonoApplications default \"/:/var/www/gamestats2.gs.nintendowifi.net\"\n        <Location />\n                SetHandler mono\n                MonoSetServerAlias default\n        </Location>\n</VirtualHost>" > sites-available/gamestats2.gs.nintendowifi.net.conf && \
+    echo "<VirtualHost *:443>\n        ServerAdmin webmaster@localhost\n        ServerName nas.nintendowifi.net\n        ServerAlias \"nas.nintendowifi.net\"\n        ServerAlias \"nas.nintendowifi.net, nas.nintendowifi.net\"\n        ProxyPreserveHost On\n        ProxyPass / http://127.0.0.1:9000/\n        ProxyPassReverse / http://127.0.0.1:9000/\n        SSLEngine on\n        SSLCertificateFile /etc/apache2/certs/server.crt\n        SSLCertificateKeyFile /etc/apache2/certs/server.key\n        SSLCertificateChainFile /etc/apache2/certs/nwc.crt\n</VirtualHost>" > sites-available/nas.nintendowifi.net.conf && \
     # Apply settings above
     a2dismod mpm_event && a2enmod proxy proxy_http "php7.4" ssl && \
     a2ensite *.nintendowifi.net.conf && \
@@ -278,4 +277,4 @@ RUN cd / && \
     #
     echo "#!/bin/sh -eu\n\nservice dnsmasq start\nservice mariadb start\napachectl start\ncd /var/www/dwc_network_server_emulator && python master_server.py" > /entrypoint.sh && chmod +x /entrypoint.sh
 
-CMD ["/bin/sh"]
+CMD ["/bin/sh", "/entrypoint.sh"]

@@ -1,8 +1,13 @@
 version: '3.5'
 services:
   pkmn-server:
-    image: pkmn-server
     container_name: pkmn-server
+    build:
+      dockerfile: ./Dockerfile
+      args:
+        - HOST_IP="192.168.43.121"
+        - ADMIN_USERNAME="admin"
+        - ADMIN_PASSWORD="opensesame"
     ports:
       - "53:53/tcp"
       - "80:80/tcp"
