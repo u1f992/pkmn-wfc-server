@@ -231,6 +231,7 @@ RUN cd / && \
     sed -i -e "s/db_pass = passwordhere/db_pass = cowfc/g" CoWFC/Web/config.ini && \
     sed -i -e "s/recaptcha_enabled = 1/recaptcha_enabled = 0/g" CoWFC/Web/config.ini && \
     touch dwc_network_server_emulator/gpcm.db && \
+    chmod 777 dwc_network_server_emulator/ -R && \
     echo "\npokemondpds\t2\tRwBpAHIAYQBmAGYAZQA_" >> dwc_network_server_emulator/gamestats.cfg && \
     # CoWFC admin page setting
     service mariadb start && \
