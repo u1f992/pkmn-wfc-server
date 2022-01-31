@@ -36,6 +36,7 @@ RUN cd / && \
     curl http://archive.apache.org/dist/httpd/$VERSION_HTTPD.tar.bz2 -O && \
     tar xvf $VERSION_HTTPD.tar.bz2 && rm $VERSION_HTTPD.tar.bz2 && cd $VERSION_HTTPD && \
     ./configure --enable-ssl --with-ssl=/usr/local/openssl/lib && make
+
 ###
 ### Create dummy certificate files
 ###
