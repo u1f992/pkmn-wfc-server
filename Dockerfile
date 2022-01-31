@@ -56,6 +56,82 @@ RUN apt update && apt -y install \
     rm WII_NWC_1_CERT.p12 keys.txt nwc.key nwc.srl server.csr
 
 FROM debian:11 AS builder_pkmn-classic-framework
+ENV WINE_MONO_VERSION="7.0.0"
+RUN cd / && \
+    \
+    #
+    # Install dependencies
+    #
+    apt update && apt -y install \
+        curl \
+        git \
+        gnupg \
+        gnupg1 \
+        gnupg2 \
+        mariadb-server \
+        mono-complete \
+        nuget \
+        sqlite3 \
+        xz-utils && \
+    \
+    #
+    # Install Wine
+    # info: https://wiki.winehq.org/Debian
+    #
+    dpkg --add-architecture i386 && \
+    curl https://dl.winehq.org/wine-builds/winehq.key -O && \
+    apt-key add winehq.key && \
+    echo "deb https://dl.winehq.org/wine-builds/debian/ bullseye main" >> /etc/apt/sources.list && \
+    apt update && apt -y install --install-recommends winehq-devel && \
+    rm winehq.key && \
+    \
+    #
+    # Install Wine Mono
+    # info: https://wiki.winehq.org/Mono
+    #
+    curl https://dl.winehq.org/wine/wine-mono/$WINE_MONO_VERSION/wine-mono-$WINE_MONO_VERSION-x86.tar.xz -O && \
+    tar xfv wine-mono-$WINE_MONO_VERSION-x86.tar.xz && \
+    mkdir -p /usr/share/wine/mono && \
+    mv wine-mono-$WINE_MONO_VERSION/ /usr/share/wine/mono/ && \
+    rm wine-mono-$WINE_MONO_VERSION-x86.tar.xz && \
+    \
+    #
+    # Clone & build pkmn-classic-framework repository
+    #
+    git clone --depth 1 https://github.com/mm201/pkmn-classic-framework.git && \
+    cd pkmn-classic-framework/ && \
+    # hacky tweeks to clone submodule without generating new ssh key
+    sed -i -e 's/git@github\.com:/https:\/\/github\.com\//g' .gitmodules && git submodule update --init && \
+    find ./ -name *.config | xargs -n 1 sed -i -e 's/connectionString="Server=gts;/connectionString="Server=localhost;/g' && \
+    # Replace System.Web.Entity with System.Web.Http.Common
+    # reference: https://stackoverflow.com/questions/27326382/mvc-5-on-mono-could-not-load-file-or-assembly-system-web-entity-or-one-of-its
+    cd gts/ && \
+    sed -i -e 's/<Reference Include=\"System.Web.Entity\" \/>//g' gts.csproj && \
+    nuget install System.Web.Http.Common && \
+    # Don't know why, only debug build of VeekunImport.exe can be executed.
+    # Disable annoying debug option
+    # line: 536
+    cd ../VeekunImport/ && \
+    sed -i -e 's/Console.ReadKey();//g' Program.cs && \
+    cd ../ && \
+    # Build
+    nuget restore || true && \
+    cd VeekunImport/ && xbuild /p:Configuration=Debug && cd - && \
+    cd gts/ && xbuild /p:Configuration=Release /p:OutDir=publish/ && \
+    \
+    #
+    # Extract veekun-pokedex and dump database
+    #
+    cd /&& \
+    curl http://veekun.com/static/pokedex/downloads/veekun-pokedex.sqlite.gz -LO && \
+    gzip -d veekun-pokedex.sqlite.gz && \
+    mv veekun-pokedex.sqlite pkmn-classic-framework/VeekunImport/bin/Debug/pokedex.sqlite && \
+    echo "[mysqld]\nlower_case_table_names=1" >> /etc/mysql/my.cnf && \
+    service mariadb start && \
+    echo "CREATE DATABASE gts; CREATE USER gts@localhost IDENTIFIED BY 'gts'; GRANT ALL ON *.* TO gts@localhost;" | mysql --user=root && \
+    mysql --user=root --password= --database=gts < pkmn-classic-framework/library/database.sql && \
+    cd pkmn-classic-framework/VeekunImport/bin/Debug/ && wine VeekunImport.exe && \
+    cd / && mysqldump --user=root gts > gts_dump.sql
 
 FROM debian:10
 ARG VERSION_OPENSSL
