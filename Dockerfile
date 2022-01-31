@@ -293,4 +293,10 @@ RUN cd / && \
         vim && \
     apt autoremove -y
 
+RUN cd /var/www/dwc_network_server_emulator/ && \
+    # Disable dlc server
+    # mv nas_server.py nas_server.py.bkp && \
+    # sed '272,367d' nas_server.py.bkp > nas_server.py && \
+    rm -rf dlc
+
 CMD ["/bin/sh", "/entrypoint.sh"]
