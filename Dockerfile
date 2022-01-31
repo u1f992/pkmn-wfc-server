@@ -251,31 +251,31 @@ RUN cd / && \
     mkdir gamestats2.gs.nintendowifi.net && mv /pkmn-classic-framework/gts/publish/_PublishedWebsites/gts/* gamestats2.gs.nintendowifi.net/ && \
     service mariadb start && \
     echo "CREATE DATABASE gts; CREATE USER 'gts'@'localhost' IDENTIFIED BY 'gts'; GRANT ALL ON *.* TO 'gts'@'localhost';" | mysql --user=root && \
-    mysql --user=root --password= --database=gts < /gts_dump.sql
-
-# Enable Apache virtualhost config
-COPY src/apache/conntest.nintendowifi.net.conf /etc/apache2/sites-available/conntest.nintendowifi.net.conf
-COPY src/apache/dls1.nintendowifi.net.conf /etc/apache2/sites-available/dls1.nintendowifi.net.conf
-COPY src/apache/gamestats.gs.nintendowifi.net.conf /etc/apache2/sites-available/gamestats.gs.nintendowifi.net.conf
-COPY src/apache/gamestats2.gs.nintendowifi.net.conf /etc/apache2/sites-available/gamestats2.gs.nintendowifi.net.conf
-#COPY src/apache/nas.nintendowifi.net.conf /etc/apache2/sites-available/nas.nintendowifi.net.conf
-COPY src/apache/nas.nintendowifi.net-ssl.conf /etc/apache2/sites-available/nas.nintendowifi.net.conf
-COPY src/apache/naswii.nintendowifi.net.conf /etc/apache2/sites-available/naswii.nintendowifi.net.conf
-COPY src/apache/sake.gs.nintendowifi.net.conf /etc/apache2/sites-available/sake.gs.nintendowifi.net.conf
-COPY src/apache/ssl.conf /etc/apache2/mods-available/ssl.conf
-COPY src/apache/ssl.load /etc/apache2/mods-available/ssl.load
-RUN echo "ServerName localhost\nHttpProtocolOptions Unsafe LenientMethods Allow0.9" >> /etc/apache2/apache2.conf && \
-    a2dismod mpm_event && \
-    a2enmod proxy proxy_http "php7.4" ssl && \
-    a2ensite *.nintendowifi.net.conf
-
+    mysql --user=root --password= --database=gts < /gts_dump.sql && \
+    \
+    #
+    # Apache2 config
+    #
+    cd /etc/apache2/ && \
+    # tweaks for suppressing warnings
+    echo "ServerName localhost\nHttpProtocolOptions Unsafe LenientMethods Allow0.9" >> apache2.conf && \
+    # Enable SSLv3 and week cipher
+    sed -i -e "s/SSLCipherSuite HIGH:!aNULL/SSLCipherSuite @SECLEVEL=0:RC4-SHA:RC4-MD5/g" mods-available/ssl.conf && \
+    sed -i -e "s/SSLProtocol all -SSLv3/SSLProtocol SSLv3/g" mods-available/ssl.conf && \
+    # virtualhost conf from dwc_network_server_emulator
+    mv /var/www/dwc_network_server_emulator/tools/apache-hosts/* sites-available/ && \
+    sed -i -e 's/ServerAlias "nas.nintendowifi.net"//g' sites-available/nas-naswii-dls1-conntest.nintendowifi.net.conf && \
+    sed -i -e 's/ServerAlias "nas.nintendowifi.net, nas.nintendowifi.net"//g' sites-available/nas-naswii-dls1-conntest.nintendowifi.net.conf && \
+    # generate custom virtualhost conf
+    echo -e "<VirtualHost *:80>\n        ServerAdmin webmaster@localhost\n        ServerName gamestats2.gs.nintendowifi.net\n        ServerAlias \"gamestats2.gs.nintendowifi.net, gamestats2.gs.nintendowifi.net\"\n        DocumentRoot /var/www/gamestats2.gs.nintendowifi.net\n        MonoAutoApplication disabled\n        MonoServerPath \"/usr/bin/mod-mono-server4\"\n        MonoApplications default \"/:/var/www/gamestats2.gs.nintendowifi.net\"\n        <Location />\n                SetHandler mono\n                MonoSetServerAlias default\n        </Location>\n</VirtualHost>" > sites-available/gamestats2.gs.nintendowifi.net.conf && \
+    echo -e "<VirtualHost *:443>\n        ServerAdmin webmaster@localhost\n        ServerName nas.nintendowifi.net\n        ServerAlias \"nas.nintendowifi.net\"\n        ServerAlias \"nas.nintendowifi.net, nas.nintendowifi.net\"\n        ProxyPreserveHost On\n        ProxyPass / http://127.0.0.1:9000/\n        ProxyPassReverse / http://127.0.0.1:9000/\n        SSLEngine on\n        SSLCertificateFile /etc/apache2/certs/server.crt\n        SSLCertificateKeyFile /etc/apache2/certs/server.key\n        SSLCertificateChainFile /etc/apache2/certs/nwc.crt\n</VirtualHost>" > sites-available/nas.nintendowifi.net.conf && \
+    # Apply settings above
+    a2dismod mpm_event && a2enmod proxy proxy_http "php7.4" ssl && \
+    a2ensite *.nintendowifi.net.conf && \
+    \
     #
     # Create entry point script
     #
-RUN echo "#!/bin/sh -eu\n\nservice dnsmasq start\nservice mariadb start\napachectl start\ncd /var/www/dwc_network_server_emulator && python master_server.py" > /entrypoint.sh && chmod +x /entrypoint.sh
+    echo "#!/bin/sh -eu\n\nservice dnsmasq start\nservice mariadb start\napachectl start\ncd /var/www/dwc_network_server_emulator && python master_server.py" > /entrypoint.sh && chmod +x /entrypoint.sh
 
 CMD ["/bin/sh"]
-# CMD apachectl start && \
-#     service dnsmasq start && \
-#     service mysql start && \
-#     bash /start-altwfc.sh
