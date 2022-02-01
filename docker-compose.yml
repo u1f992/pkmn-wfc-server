@@ -1,15 +1,23 @@
 version: '3.5'
 services:
-  pkmn-wfc-server:
-    container_name: pkmn-wfc-server
+  dnsmasq:
+    container_name: dns-server
+    image: strm/dnsmasq
+    volumes:
+      - ./dnsmasq/wfc.conf:/etc/dnsmasq.d/wfc.conf
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+    cap_add:
+      - NET_ADMIN
+  pkmn-server:
+    container_name: pkmn-server
     build:
-      dockerfile: ./Dockerfile
+      dockerfile: ./pkmn-server/Dockerfile
       args:
-        - HOST_IP=192.168.43.121
         - ADMIN_USERNAME=admin
         - ADMIN_PASSWORD=opensesame
     ports:
-      - "53:53/tcp"
       - "80:80/tcp"
       - "443:443/tcp"
       - "8000:8000/tcp"
@@ -26,6 +34,3 @@ services:
       - "29900:29900/tcp"
       - "29901:29901/tcp"
       - "29920:29920/tcp"
-      - "53:53/udp"
-    cap_add:
-      - NET_ADMIN
