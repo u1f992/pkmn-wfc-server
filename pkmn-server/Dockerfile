@@ -223,6 +223,7 @@ RUN cd / && \
     sed -i -e "s/db_user = root/db_user = cowfc/g" CoWFC/Web/config.ini && \
     sed -i -e "s/db_pass = passwordhere/db_pass = cowfc/g" CoWFC/Web/config.ini && \
     sed -i -e "s/recaptcha_enabled = 1/recaptcha_enabled = 0/g" CoWFC/Web/config.ini && \
+    chmod 777 CoWFC/Web/bans.log && \
     touch dwc_network_server_emulator/gpcm.db && \
     chmod 777 dwc_network_server_emulator/ -R && \
     echo "\npokemondpds\t2\tRwBpAHIAYQBmAGYAZQA_" >> dwc_network_server_emulator/gamestats.cfg && \
@@ -290,10 +291,7 @@ RUN cd /var/www/dwc_network_server_emulator/ && \
     #
     # Disable dlc server
     #
-    # mv nas_server.py nas_server.py.bkp && \
-    # sed '272,367d' nas_server.py.bkp > nas_server.py && \
-    #
-    # rm -rf dlc
+    rm -rf dlc/* && \
     sed -i -e 's/gamecodes_return_random_file = \[.*\]/gamecodes_return_random_file = \[\]/g' nas_server.py
 
 CMD ["/bin/sh", "/entrypoint.sh"]
