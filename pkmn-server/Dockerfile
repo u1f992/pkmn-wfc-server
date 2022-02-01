@@ -292,6 +292,8 @@ RUN cd /var/www/dwc_network_server_emulator/ && \
     #
     # mv nas_server.py nas_server.py.bkp && \
     # sed '272,367d' nas_server.py.bkp > nas_server.py && \
-    rm -rf dlc
+    #
+    # rm -rf dlc
+    sed -i -e 's/gamecodes_return_random_file = \[.*\]/gamecodes_return_random_file = \[\]/g' nas_server.py
 
 CMD ["/bin/sh", "/entrypoint.sh"]
