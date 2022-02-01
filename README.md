@@ -1,6 +1,6 @@
 # pkmn-wfc-server
 
-Docker image based on [CoWFC](https://github.com/EnergyCube/CoWFC) & [pkmnFoundation Server](https://github.com/mm201/pkmn-classic-framework).
+Docker image based on [CoWFC](https://github.com/EnergyCube/CoWFC) & [Poké Classic Framework](https://github.com/mm201/pkmn-classic-framework).
 
 **Only tested on Battle Tower (Gen4)** and **Mystery Gifts are disabled** by default.
 
@@ -34,5 +34,5 @@ Since enabled weak-enough SSL auth on purpose, this container is not intended to
 
 - [dwc_network_server_emulator](https://github.com/EnergyCube/dwc_network_server_emulator)
 - [CoWFC](https://github.com/EnergyCube/CoWFC)
-- [pkmnFoundation Server](https://github.com/mm201/pkmn-classic-framework)
+- [Poké Classic Framework](https://github.com/mm201/pkmn-classic-framework)
 - [nds-constrain't](https://github.com/KaeruTeam/nds-constraint)
