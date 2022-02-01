@@ -3,6 +3,7 @@ services:
   dnsmasq:
     container_name: dns-server
     image: strm/dnsmasq
+    restart: always
     volumes:
       - ./dnsmasq/wfc.conf:/etc/dnsmasq.d/wfc.conf
     ports:
