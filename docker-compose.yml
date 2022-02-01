@@ -1,7 +1,7 @@
 version: '3.5'
 services:
   dnsmasq:
-    container_name: dns-server
+    container_name: dnsmasq
     image: strm/dnsmasq
     restart: always
     volumes:

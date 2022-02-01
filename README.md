@@ -1,6 +1,6 @@
 # pkmn-wfc-server
 
-Docker image based on [CoWFC](https://github.com/EnergyCube/CoWFC) & [pkmnFoundation Server](https://github.com/mm201/pkmn-classic-framework)
+Docker image based on [CoWFC](https://github.com/EnergyCube/CoWFC) & [pkmnFoundation Server](https://github.com/mm201/pkmn-classic-framework).
 
 **Only tested on Battle Tower (Gen4)** and **Mystery Gifts are disabled** by default.
 
