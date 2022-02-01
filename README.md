@@ -28,7 +28,7 @@ Also need to open ports listed [here](https://github.com/barronwaffles/dwc_netwo
 
 ## Caution
 
-Since enabled weak-enough SSL auth on purpose, this container doesn't intended to be published via internet.
+Since enabled weak-enough SSL auth on purpose, this container is not intended to be published via internet.
 
 ## Reference
 
