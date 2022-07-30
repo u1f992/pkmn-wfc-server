@@ -55,7 +55,7 @@ RUN mkdir /dummy-certs && cd /dummy-certs/ && \
         curl \
         openssl && \
     \
-    curl https://larsenv.github.io/NintendoCerts/WII_NWC_1_CERT.p12 -O && \
+    curl https://larsenv.github.io/NintendoCerts/WII_NWC_1_CERT.p12 -LO && \
     openssl pkcs12 -in WII_NWC_1_CERT.p12 -passin pass:alpine -passout pass:alpine -out keys.txt && \
     sed -n '7,29p' keys.txt > nwc.crt && \
     sed -n '33,50p' keys.txt > nwc.key && \
@@ -68,7 +68,7 @@ RUN mkdir /dummy-certs && cd /dummy-certs/ && \
 ### Build pkmn-classic-framework and dump the gts database
 ###
 FROM debian:11 AS builder_pkmn-classic-framework
-ENV WINE_MONO_VERSION="7.0.0"
+ENV WINE_MONO_VERSION="7.3.0"
 RUN cd / && \
     \
     #
@@ -146,6 +146,12 @@ RUN cd / && \
     cd / && mysqldump --user=root gts > gts_dump.sql
 
 ###
+### Isolate pip from runner
+###
+FROM python:2.7.18 AS builder_twisted
+RUN pip install twisted
+
+###
 ### pkmn-server
 ###
 FROM debian:11
@@ -158,12 +164,13 @@ COPY --from=builder_openssl /$VERSION_HTTPD /$VERSION_HTTPD
 COPY --from=builder_dummy-certs /dummy-certs /dummy-certs
 COPY --from=builder_pkmn-classic-framework /pkmn-classic-framework /pkmn-classic-framework
 COPY --from=builder_pkmn-classic-framework /gts_dump.sql /gts_dump.sql
+COPY --from=builder_twisted /usr/local/lib/python2.7/site-packages /usr/local/lib/python2.7/dist-packages
 RUN cd / && \
     \
     #
     # Install requirements
     #
-    apt update && apt install -y \
+    apt update && apt -y --no-install-recommends install \
         apache2 \
         apt-transport-https \
         ca-certificates \
@@ -177,13 +184,11 @@ RUN cd / && \
         python3-software-properties \
         software-properties-common \
         vim && \
-    # Install py2-Twisted
     ln -s /usr/bin/python2.7 /usr/bin/python && \
-    curl https://bootstrap.pypa.io/pip/2.7/get-pip.py -O && python get-pip.py && pip install twisted && rm get-pip.py && \
     # Install php7.4
     curl https://packages.sury.org/php/apt.gpg -o /etc/apt/trusted.gpg.d/php.gpg && \
     echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list && \
-    apt update && apt -y install \
+    apt update && apt -y --no-install-recommends install \
         mariadb-server \
         php7.4 \
         php7.4-mysql \
@@ -193,7 +198,7 @@ RUN cd / && \
     #
     # Install custom OpenSSL(mod_ssl)
     #
-    apt update && apt -y install \
+    apt update && apt -y --no-install-recommends install \
         build-essential && \
     cd /$VERSION_OPENSSL && make install_sw && make install_ssldirs && \
     cd /$VERSION_HTTPD && cp modules/ssl/.libs/mod_ssl.so /usr/lib/apache2/modules/ && \
