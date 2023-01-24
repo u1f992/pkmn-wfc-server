@@ -68,7 +68,7 @@ RUN mkdir /dummy-certs && cd /dummy-certs/ && \
 ### Build pkmn-classic-framework and dump the gts database
 ###
 FROM debian:11 AS builder_pkmn-classic-framework
-ENV WINE_MONO_VERSION="7.3.0"
+ENV WINE_MONO_VERSION="7.4.0"
 RUN cd / && \
     \
     #
@@ -94,7 +94,7 @@ RUN cd / && \
     curl https://dl.winehq.org/wine-builds/winehq.key -O && \
     apt-key add winehq.key && \
     echo "deb https://dl.winehq.org/wine-builds/debian/ bullseye main" >> /etc/apt/sources.list && \
-    apt update && apt -y install --install-recommends winehq-devel && \
+    apt update && apt -y install --install-recommends winehq-devel=8.0~rc5~bullseye-1 && \
     rm winehq.key && \
     \
     #
